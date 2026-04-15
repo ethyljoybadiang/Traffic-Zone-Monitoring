@@ -84,7 +84,7 @@ class RegionsMixin:
             
             self.points.append((x, y))
             self.update_status(f"Point {len(self.points)} added. Click more points or press ENTER to close.")
-            self.display_first_frame()
+            self.refresh_video_display()
         else:
             self.update_status("Region complete. Start plotting a new region by clicking 4 more points...")
         pass
@@ -183,7 +183,7 @@ class RegionsMixin:
             self.x4_var.set("")
             
             if self.video_capture:
-                self.display_first_frame()
+                self.refresh_video_display()
             
         except (ValueError, IndexError):
             self.update_status("✗ Invalid coordinate format.")
@@ -203,7 +203,7 @@ class RegionsMixin:
             if hasattr(self, 'notebook'):
                 self.notebook.select(2)
                 
-            self.display_first_frame()
+            self.refresh_video_display()
         elif len(self.points) > 0:
             messagebox.showwarning("Incomplete", f"Please plot at least 3 points. You have {len(self.points)}.")
         else:
@@ -215,7 +215,7 @@ class RegionsMixin:
         if self.points:
             self.points.clear()
             self.update_status("Plotted points cleared.")
-            self.display_first_frame()
+            self.refresh_video_display()
         else:
             self.update_status("Nothing to clear.")
         pass
@@ -232,7 +232,7 @@ class RegionsMixin:
             self.update_regions_listbox()
             self.update_region_filter_combobox()
             self.update_status(f"✓ Region removed. {len(self.regions)} region(s) remaining.")
-            self.display_first_frame()
+            self.refresh_video_display()
         else:
             messagebox.showinfo("Info", "No regions to remove.")
         pass
@@ -246,7 +246,7 @@ class RegionsMixin:
                 self.update_region_filter_combobox()
                 self.points.clear()
                 self.update_status("✓ All regions cleared.")
-                self.display_first_frame()
+                self.refresh_video_display()
         else:
             messagebox.showinfo("Info", "No regions to clear.")
         pass
@@ -282,7 +282,7 @@ class RegionsMixin:
         self.update_region_filter_combobox()
         self.update_status(f"Region {index + 1} loaded for editing. Adjust coordinates and click 'Set Tracking Area'.")
         if self.video_capture:
-            self.display_first_frame()
+            self.refresh_video_display()
         pass
 
     def delete_selected_region(self):
@@ -295,7 +295,7 @@ class RegionsMixin:
         self.update_region_filter_combobox()
         self.update_status(f"✓ Region removed. {len(self.regions)} region(s) remaining.")
         if self.video_capture:
-            self.display_first_frame()
+            self.refresh_video_display()
         pass
 
     def update_regions_listbox(self):

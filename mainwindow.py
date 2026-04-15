@@ -169,7 +169,7 @@ class MainWindow(tk.Tk,RegionsMixin):
                 self.update_status("✗ Video load failed.")
             else:
                 self.update_status("✓ Video loaded. Standardized to 640x640.")
-                self.display_first_frame()
+                self.refresh_video_display(reset=True)
                 messagebox.showinfo(
                     "Information",
                     f"{video_basename} loaded successfully.\n\nSet polygon for vehicle counting by clicking 4 coordinates on the video."
@@ -177,6 +177,14 @@ class MainWindow(tk.Tk,RegionsMixin):
                 
                 self.vehicle_count = {}
                 self.regions = []
+                
+                # Initialize Slider
+                self.total_frames = int(self.video_capture.get(cv2.CAP_PROP_FRAME_COUNT))
+                self.video_slider.config(to=self.total_frames, state=tk.NORMAL)
+                self.slider_var.set(0)
+                if hasattr(self, 'frame_info_var'):
+                    self.frame_info_var.set(f"Frame: 0 / {self.total_frames}")
+                
                 self.export_btn.config(state=tk.NORMAL)
                 self.update_regions_listbox()
                 if hasattr(self, 'notebook'):
@@ -187,22 +195,30 @@ class MainWindow(tk.Tk,RegionsMixin):
             self.update_status("✗ Video load failed.")
     
     # VIDEO WINDOW
-    def display_first_frame(self):
-        """Display the first frame of video for region setup with letterboxing"""
+    def refresh_video_display(self, reset=False):
+        """Display a frame of video for region setup without necessarily resetting to 0"""
         if not self.video_capture:
             return
             
-        self.video_capture.set(cv2.CAP_PROP_POS_FRAMES, 0)
+        if reset:
+            self.video_capture.set(cv2.CAP_PROP_POS_FRAMES, 0)
+            
+        # Save current position
+        curr_pos = self.video_capture.get(cv2.CAP_PROP_POS_FRAMES)
+        
         ret, frame = self.video_capture.read()
         if ret:
             # Resize proportionally to ensure the maximum dimension is 640
             frame = cv2.resize(frame, (self.width, self.height), interpolation=cv2.INTER_LINEAR)
             rgb_image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             self.display_frame_on_canvas(rgb_image)
+            
+        # Restore position
+        self.video_capture.set(cv2.CAP_PROP_POS_FRAMES, curr_pos)
 
 
     def start_tracking(self):
-        """Start video tracking"""
+        """Start or Pause video tracking"""
         if not self.video_capture or not self.model:
             messagebox.showerror("Error", "Load model and video first.")
             self.update_status("✗ Model or video not loaded.")
@@ -212,6 +228,21 @@ class MainWindow(tk.Tk,RegionsMixin):
             messagebox.showerror("Error", "Add at least one tracking region first.")
             self.update_status("✗ No tracking regions defined.")
             return
+
+        if self.tracking:
+            # We are currently tracking, so PAUSE
+            self.tracking = False
+            self.status_icon_var.set("⏸ Paused")
+            self.start_btn.config(text="▶ Resume Tracking")
+            self.update_status("⏸ Tracking paused.")
+            if self.timer_id:
+                self.after_cancel(self.timer_id)
+                self.timer_id = None
+            return
+        
+        # We are starting or resuming
+        current_status = self.status_icon_var.get()
+        is_fresh_start = (current_status == "⚪ Idle" or current_status == "⚪ Stopped")
         
         self.update_status("▶ Tracking started...")
         self.status_icon_var.set("🟢 Tracking")
@@ -219,32 +250,34 @@ class MainWindow(tk.Tk,RegionsMixin):
         
         self.set_line_btn.config(state=tk.DISABLED)
         self.select_video_btn.config(state=tk.DISABLED)
-        self.start_btn.config(state=tk.DISABLED)
+        self.start_btn.config(text="⏸ Pause Tracking")
         self.stop_btn.config(state=tk.NORMAL)
         
-        # Ensure video_capture is available and initialized
-        if not self.video_capture or not self.video_capture.isOpened():
-            try:
-                self.video_capture = cv2.VideoCapture(self.video_name)
-            except Exception as e:
-                messagebox.showerror("Error", f"Failed to re-initialize video: {str(e)}")
-                return
+        if is_fresh_start:
+            # Ensure video_capture is available and initialized
+            if not self.video_capture or not self.video_capture.isOpened():
+                try:
+                    self.video_capture = cv2.VideoCapture(self.video_name)
+                except Exception as e:
+                    messagebox.showerror("Error", f"Failed to re-initialize video: {str(e)}")
+                    return
 
-        # Reset video to start
-        self.video_capture.set(cv2.CAP_PROP_POS_FRAMES, 0)
+            # Reset video to start
+            self.video_capture.set(cv2.CAP_PROP_POS_FRAMES, 0)
+            self.frame_count = 0  # Reset frame counter
+            
+            if hasattr(self, 'notebook'):
+                self.notebook.select(3) # Auto switch to Dashboard Tab (Index 3)
+
         self.prev_frame_time = time.time()
         self.fps_time = time.time()
         self.fps_counter = 0
-        self.frame_count = 0  # Reset frame counter
         
-        if hasattr(self, 'notebook'):
-            self.notebook.select(3) # Auto switch to Dashboard Tab
-            
         self.update_frame()
-        self.update_status("▶ Tracking restarted.")
+        self.update_status("▶ Tracking active.")
     
     def stop_tracking(self):
-        """Stop video tracking but preserve session state"""
+        """Stop video tracking and reset to beginning"""
         self.update_status("⏹ Stopping tracking...")
         self.tracking = False
         
@@ -252,16 +285,19 @@ class MainWindow(tk.Tk,RegionsMixin):
             self.after_cancel(self.timer_id)
             self.timer_id = None
         
-        # Do NOT release video_capture or clear canvas to allow quick restart/review
-        
         self.status_icon_var.set("⚪ Stopped")
         
         self.set_line_btn.config(state=tk.NORMAL)
         self.select_video_btn.config(state=tk.NORMAL)
-        self.start_btn.config(state=tk.NORMAL)
+        self.start_btn.config(text="▶ Start Tracking", state=tk.NORMAL)
         self.stop_btn.config(state=tk.DISABLED)
         
-        self.update_status("✓ Tracking stopped. Ready for restart or session reset.")
+        # Reset video to first frame for preview
+        if self.video_capture:
+            self.refresh_video_display(reset=True)
+            self.slider_var.set(0)
+            
+        self.update_status("✓ Tracking stopped and reset. Ready for new start.")
 
     def reset_session(self):
         """Completely reset the application state"""
@@ -377,6 +413,14 @@ class MainWindow(tk.Tk,RegionsMixin):
                 self.display_frame_on_canvas(rgb_image)
                 self.update_table_data()
                 
+                # Update slider position
+                if hasattr(self, 'video_slider'):
+                    self.is_manual_seek = True # Block feedback loop
+                    self.slider_var.set(self.frame_count)
+                    if hasattr(self, 'frame_info_var') and hasattr(self, 'total_frames'):
+                        self.frame_info_var.set(f"Frame: {self.frame_count} / {self.total_frames}")
+                    self.is_manual_seek = False
+                
                 if self.tracking:
                     self.timer_id = self.after(2, self.update_frame)
                     
@@ -484,6 +528,23 @@ class MainWindow(tk.Tk,RegionsMixin):
         self.status_var.set(message)
         self.update_idletasks()
     
+    def on_slider_move(self, value):
+        """Handle manual video seeking via slider"""
+        if not self.video_capture or self.is_manual_seek:
+            return
+            
+        # If tracking is active, pausing might be better, 
+        # but let's allow seeking and see.
+        frame_idx = int(float(value))
+        self.video_capture.set(cv2.CAP_PROP_POS_FRAMES, frame_idx)
+        self.frame_count = frame_idx  # Keep internal counter synchronized
+        self.refresh_video_display(reset=False)
+        
+        if hasattr(self, 'frame_info_var') and hasattr(self, 'total_frames'):
+            self.frame_info_var.set(f"Frame: {frame_idx} / {self.total_frames}")
+            
+        self.update_status(f"Seeked to frame {frame_idx}")
+
     def on_mousewheel(self, event):
         """Handle mouse wheel events"""
         pass
