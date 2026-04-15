@@ -79,8 +79,8 @@ def setup_ui(self):
         self.video_canvas = tk.Canvas(
             left_frame, 
             bg="black", 
-            width=1024, 
-            height=768,
+            width=800, 
+            height=600,
             cursor="crosshair"
         )
         self.video_canvas.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
@@ -89,6 +89,26 @@ def setup_ui(self):
         self.video_canvas.bind("<ButtonRelease-1>", self.on_video_release)
         self.video_canvas.bind("<Enter>", self.on_video_enter)
         self.video_canvas.bind("<Leave>", self.on_video_leave)
+        
+        # Video Seek Slider Frame
+        seek_frame = ttk.Frame(left_frame)
+        seek_frame.pack(fill=tk.X, padx=5, pady=(5, 5))
+        
+        self.slider_var = tk.DoubleVar(value=0)
+        self.is_manual_seek = False
+        self.video_slider = ttk.Scale(
+            seek_frame, 
+            from_=0, 
+            to=100, 
+            orient=tk.HORIZONTAL, 
+            variable=self.slider_var,
+            command=self.on_slider_move,
+            state=tk.DISABLED
+        )
+        self.video_slider.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 10))
+        
+        self.frame_info_var = tk.StringVar(value="Frame: 0 / 0")
+        ttk.Label(seek_frame, textvariable=self.frame_info_var, font=("Arial", 9, "bold"), foreground="blue").pack(side=tk.RIGHT)
         
         # Status bar
         self.status_var = tk.StringVar(value="Ready. Select a model to begin.")
