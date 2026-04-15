@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.pyc
+
+# Virtual environment
+myenv310/
+venv/
+env/
+Qenv310/
+
+# Build files
+build/
+dist/
+*.spec
+
+# Large binaries
+*.exe
+*.dll
+*.pyd
+*.mp4
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+Bellevue_Bellevue_NE8th__2017-09-11_11-08-31.mp4
