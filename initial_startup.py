@@ -5,6 +5,7 @@ from video_engine import VideoEngine
 import torch
 import time
 import os
+from app_context import APPLICATION_PATH
 
 def initial_ui(self):
     self.title("ALAM - Vehicle Counting System (Tkinter Version)")
@@ -154,45 +155,6 @@ def setup_ui(self):
         self.notebook.add(tab4, text="Results")
         setup_results_tab(self, tab4)
         
-def select_model(self):
-    """Select and load AI model"""
-    file_name = filedialog.askopenfilename(
-        title="Select Model",
-        filetypes=[("All Supported Models", "*.pt *.pth *.xml"), ("PyTorch Models", "*.pt *.pth"), ("OpenVINO Models", "*.xml"), ("All Files", "*.*")]
-    )
-    
-    if not file_name:
-        self.update_status("Model selection cancelled.")
-        return
-    
-    self.update_status("Loading AI model... Please wait.")
-    try:
-        self.model, device_type = self.video_engine.load_model(file_name)
-        
-        if device_type == 'gpu':
-            self.update_status("✓ Model loaded on GPU.")
-            print(f"\n{'='*40}")
-            print(f"NOTICE: GPU is being used! (CUDA: {torch.cuda.get_device_name(0)})")
-            print(f"{'='*40}\n")
-        else:
-            self.update_status(f"✓ Model loaded on {device_type.upper()}.")
-        
-        self.file_name = file_name
-        model_name = os.path.basename(file_name)
-        self.model_name_var.set(model_name)
-        self.ai_model_var.set(model_name)
-        
-        # Initialize vehicles dictionary
-        self.vehicles = {value: 0 for key, value in self.model.names.items()}
-        self.initialize_table()
-        
-        # Enable video selection
-        self.select_video_btn.config(state=tk.NORMAL)
-        self.update_status("✓ Model loaded. Now select a video.")
-        
-    except Exception as e:
-        messagebox.showerror("Error", f"Failed to load model: {str(e)}")
-        self.update_status("✗ Model loading failed.")
 
 def initialize_table(self):
     """Initialize counts and table for all regions"""
@@ -217,3 +179,44 @@ def initialize_table(self):
         except Exception as e:
             messagebox.showerror("Error", f"Failed to initialize: {str(e)}")
             self.update_status("✗ Initialization failed.")
+
+        # SELECTION & LOADING    
+    def select_model(self):
+        """Select and load AI model"""
+        file_name = filedialog.askopenfilename(
+            title="Select Model",
+            filetypes=[("All Supported Models", "*.pt *.pth *.xml"), ("PyTorch Models", "*.pt *.pth"), ("OpenVINO Models", "*.xml"), ("All Files", "*.*")]
+        )
+        
+        if not file_name:
+            self.update_status("Model selection cancelled.")
+            return
+        
+        self.update_status("Loading AI model... Please wait.")
+        try:
+            self.model, device_type = self.video_engine.load_model(file_name)
+            
+            if device_type == 'gpu':
+                self.update_status("✓ Model loaded on GPU.")
+                print(f"\n{'='*40}")
+                print(f"NOTICE: GPU is being used! (CUDA: {torch.cuda.get_device_name(0)})")
+                print(f"{'='*40}\n")
+            else:
+                self.update_status(f"✓ Model loaded on {device_type.upper()}.")
+            
+            self.file_name = file_name
+            model_name = os.path.basename(file_name)
+            self.model_name_var.set(model_name)
+            self.ai_model_var.set(model_name)
+            
+            # Initialize vehicles dictionary
+            self.vehicles = {value: 0 for key, value in self.model.names.items()}
+            self.initialize_table()
+            
+            # Enable video selection
+            self.select_video_btn.config(state=tk.NORMAL)
+            self.update_status("✓ Model loaded. Now select a video.")
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to load model: {str(e)}")
+            self.update_status("✗ Model loading failed.")
