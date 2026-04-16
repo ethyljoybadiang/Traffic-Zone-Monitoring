@@ -2,7 +2,12 @@ import cv2
 import numpy as np
 import os
 import torch
+import tkinter as tk
+import time
+
 from ultralytics import YOLO
+from tkinter import ttk, filedialog, messagebox
+from datetime import datetime
 
 class VideoEngine:
     def __init__(self):
@@ -120,3 +125,107 @@ class VideoEngine:
         img = cv2.copyMakeBorder(img, top, bottom, left, right, cv2.BORDER_CONSTANT, value=color)
         return img
 
+
+    def refresh_video_display(self, reset=False):
+        """Display a frame of video for region setup without necessarily resetting to 0"""
+        if not self.video_capture:
+            return
+            
+        if reset:
+            self.video_capture.set(cv2.CAP_PROP_POS_FRAMES, 0)
+            
+        # Save current position
+        curr_pos = self.video_capture.get(cv2.CAP_PROP_POS_FRAMES)
+        
+        ret, frame = self.video_capture.read()
+        if ret:
+            # Resize proportionally to ensure the maximum dimension is 640
+            frame = cv2.resize(frame, (self.width, self.height), interpolation=cv2.INTER_LINEAR)
+            rgb_image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            self.display_frame_on_canvas(rgb_image)
+            
+        # Restore position
+        self.video_capture.set(cv2.CAP_PROP_POS_FRAMES, curr_pos)
+
+
+    def start_tracking(self):
+        """Start or Pause video tracking"""
+        if not self.video_capture or not self.model:
+            messagebox.showerror("Error", "Load model and video first.")
+            self.update_status("✗ Model or video not loaded.")
+            return
+        
+        if not self.regions:
+            messagebox.showerror("Error", "Add at least one tracking region first.")
+            self.update_status("✗ No tracking regions defined.")
+            return
+
+        if self.tracking:
+            # We are currently tracking, so PAUSE
+            self.tracking = False
+            self.status_icon_var.set("⏸ Paused")
+            self.start_btn.config(text="▶ Resume Tracking")
+            self.update_status("⏸ Tracking paused.")
+            if self.timer_id:
+                self.after_cancel(self.timer_id)
+                self.timer_id = None
+            return
+        
+        # We are starting or resuming
+        current_status = self.status_icon_var.get()
+        is_fresh_start = (current_status == "⚪ Idle" or current_status == "⚪ Stopped")
+        
+        self.update_status("▶ Tracking started...")
+        self.status_icon_var.set("🟢 Tracking")
+        self.tracking = True
+        
+        self.set_line_btn.config(state=tk.DISABLED)
+        self.select_video_btn.config(state=tk.DISABLED)
+        self.start_btn.config(text="⏸ Pause Tracking")
+        self.stop_btn.config(state=tk.NORMAL)
+        
+        if is_fresh_start:
+            # Ensure video_capture is available and initialized
+            if not self.video_capture or not self.video_capture.isOpened():
+                try:
+                    self.video_capture = cv2.VideoCapture(self.video_name)
+                except Exception as e:
+                    messagebox.showerror("Error", f"Failed to re-initialize video: {str(e)}")
+                    return
+
+            # Reset video to start
+            self.video_capture.set(cv2.CAP_PROP_POS_FRAMES, 0)
+            self.frame_count = 0  # Reset frame counter
+            
+            if hasattr(self, 'notebook'):
+                self.notebook.select(3) # Auto switch to Dashboard Tab (Index 3)
+
+        self.prev_frame_time = time.time()
+        self.fps_time = time.time()
+        self.fps_counter = 0
+        
+        self.update_frame()
+        self.update_status("▶ Tracking active.")
+    
+    def stop_tracking(self):
+        """Stop video tracking and reset to beginning"""
+        self.update_status("⏹ Stopping tracking...")
+        self.tracking = False
+        
+        if self.timer_id:
+            self.after_cancel(self.timer_id)
+            self.timer_id = None
+        
+        self.status_icon_var.set("⚪ Stopped")
+        
+        self.set_line_btn.config(state=tk.NORMAL)
+        self.select_video_btn.config(state=tk.NORMAL)
+        self.start_btn.config(text="▶ Start Tracking", state=tk.NORMAL)
+        self.stop_btn.config(state=tk.DISABLED)
+        
+        # Reset video to first frame for preview
+        if self.video_capture:
+            self.refresh_video_display(reset=True)
+            self.slider_var.set(0)
+            
+        self.update_status("✓ Tracking stopped and reset. Ready for new start.")
