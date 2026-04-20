@@ -85,6 +85,8 @@ def setup_ui(self):
             cursor="crosshair"
         )
         self.video_canvas.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
+        # Redraw last frame on resize (keeps aspect ratio via display_frame_on_canvas)
+        self.video_canvas.bind("<Configure>", self.on_video_canvas_resize)
         self.video_canvas.bind("<Button-1>", self.on_video_click)
         self.video_canvas.bind("<Motion>", self.on_video_motion)
         self.video_canvas.bind("<ButtonRelease-1>", self.on_video_release)

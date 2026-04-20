@@ -5,6 +5,9 @@ from tkinter import ttk, filedialog, messagebox
 class RegionsMixin:
     def display_frame_on_canvas(self, frame):
         """Display a frame on the canvas"""
+        # Keep a reference to the last rendered frame so we can redraw on canvas resize.
+        self._last_display_frame = frame
+        
         # Convert to PIL Image
         pil_image = Image.fromarray(frame)
         
@@ -61,6 +64,38 @@ class RegionsMixin:
         self.canvas_width = pil_image.width
         self.canvas_height = pil_image.height
         pass
+
+    def on_video_canvas_resize(self, event):
+        """Redraw the last frame when the canvas resizes (throttled)."""
+        # During active tracking, frames are being redrawn continuously anyway.
+        if getattr(self, "tracking", False):
+            return
+
+        if event.width <= 1 or event.height <= 1:
+            return
+
+        last_size = getattr(self, "_last_canvas_size", None)
+        new_size = (event.width, event.height)
+        if last_size == new_size:
+            return
+        self._last_canvas_size = new_size
+
+        pending = getattr(self, "_canvas_resize_after_id", None)
+        if pending is not None:
+            try:
+                self.after_cancel(pending)
+            except Exception:
+                pass
+
+        self._canvas_resize_after_id = self.after(50, self._redraw_last_frame)
+
+    def _redraw_last_frame(self):
+        """Internal: redraw using the most recently displayed frame."""
+        self._canvas_resize_after_id = None
+        frame = getattr(self, "_last_display_frame", None)
+        if frame is None:
+            return
+        self.display_frame_on_canvas(frame)
 
     def on_video_click(self, event):
         """Handle mouse click on video canvas"""
@@ -269,26 +304,36 @@ class RegionsMixin:
         index = selection[0]
         region = self.regions[index]
         
-        # Auto-populate the coordinates in the inputs
-        if len(region) == 4:
-            self.x1_var.set(f"{int(region[0][0])}, {int(region[0][1])}")
-            self.x2_var.set(f"{int(region[1][0])}, {int(region[1][1])}")
-            self.x3_var.set(f"{int(region[2][0])}, {int(region[2][1])}")
-            self.x4_var.set(f"{int(region[3][0])}, {int(region[3][1])}")
+        # Auto-populate the active plotting points so users can edit visually
+        self.points = list(region)
+        
+        # Populate the first 4 UI textboxes as courtesy, clearing others
+        if len(region) >= 1: self.x1_var.set(f"{int(region[0][0])}, {int(region[0][1])}")
+        else: self.x1_var.set("")
+        if len(region) >= 2: self.x2_var.set(f"{int(region[1][0])}, {int(region[1][1])}")
+        else: self.x2_var.set("")
+        if len(region) >= 3: self.x3_var.set(f"{int(region[2][0])}, {int(region[2][1])}")
+        else: self.x3_var.set("")
+        if len(region) >= 4: self.x4_var.set(f"{int(region[3][0])}, {int(region[3][1])}")
+        else: self.x4_var.set("")
             
         # Remove it from active lists while editing
         self.regions.pop(index)
         self.update_regions_listbox()
         self.update_region_filter_combobox()
-        self.update_status(f"Region {index + 1} loaded for editing. Adjust coordinates and click 'Set Tracking Area'.")
+        self.update_status(f"Region {index + 1} loaded for editing. Adjust points on canvas and press ENTER to close.")
         if self.video_capture:
             self.refresh_video_display()
         pass
 
     def delete_selected_region(self):
-        """Delete the specifically targeted region"""
+        """Delete the specifically targeted region with confirmation"""
         selection = self.regions_listbox.curselection()
         if not selection: return
+        
+        if not messagebox.askyesno("Confirm Delete", "Are you sure you want to delete this region?"):
+            return
+            
         index = selection[0]
         self.regions.pop(index)
         self.update_regions_listbox()

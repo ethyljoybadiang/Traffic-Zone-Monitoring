@@ -85,9 +85,6 @@ class VideoEngine:
                         if i not in drawn_indices:
                             x1, y1, x2, y2 = map(int, box)
                             cv2.rectangle(annotated_frame, (x1, y1), (x2, y2), color, 2)
-                            label = f"{class_name} ID:{track_id}"
-                            cv2.putText(annotated_frame, label, (x1, y1 - 10), 
-                                       cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
                             drawn_indices.add(i)
                 
                 region_counts[region_idx] = current_region_counts

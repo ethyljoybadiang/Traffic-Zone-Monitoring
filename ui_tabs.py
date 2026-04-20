@@ -108,7 +108,7 @@ def setup_region_tab(app, parent):
     app.region_menu = tk.Menu(app, tearoff=0)
     app.region_menu.add_command(label="Edit Region", command=app.edit_selected_region)
     app.region_menu.add_command(label="Delete Region", command=app.delete_selected_region)
-    app.regions_listbox.bind("<Button-3>", app.show_region_context_menu)
+    app.regions_listbox.bind("<ButtonRelease-3>", app.show_region_context_menu)
     
     ttk.Label(
         frame, 
@@ -119,7 +119,7 @@ def setup_region_tab(app, parent):
 
 def setup_tracking_tab(app, parent):
     """Setup tracking control tab"""
-    frame = ttk.LabelFrame(parent, text="Tracking Control", padding=10)
+    frame = ttk.LabelFrame(parent, text="Tracking Control", padding=5)
     frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
     
     # Start tracking button
