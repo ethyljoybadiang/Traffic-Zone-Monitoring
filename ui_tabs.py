@@ -13,7 +13,7 @@ def setup_attributes_tab(app, parent):
     
     model_btn = ttk.Button(
         frame, 
-        text="Select Model (.pt / .xml)", 
+        text="Select Model (.pt, .xml, .onnx, .engine, .hef)", 
         command=app.select_model
     )
     model_btn.pack(fill=tk.X, pady=5)

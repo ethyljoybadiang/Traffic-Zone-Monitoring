@@ -187,7 +187,7 @@ def initialize_table(self):
         """Select and load AI model"""
         file_name = filedialog.askopenfilename(
             title="Select Model",
-            filetypes=[("All Supported Models", "*.pt *.pth *.xml"), ("PyTorch Models", "*.pt *.pth"), ("OpenVINO Models", "*.xml"), ("All Files", "*.*")]
+            filetypes=[("All Supported Models", "*.pt *.pth *.xml *.onnx *.engine *.hef"), ("PyTorch Models", "*.pt *.pth"), ("OpenVINO Models", "*.xml"), ("ONNX Models", "*.onnx"), ("TensorRT Engine", "*.engine"), ("Hailo HEF", "*.hef"), ("All Files", "*.*")]
         )
         
         if not file_name:
