@@ -5,7 +5,7 @@ import torch
 import tkinter as tk
 import time
 
-from ultralytics import YOLO
+from ultralytics.models.yolo.model import YOLO
 from tkinter import ttk, filedialog, messagebox
 from datetime import datetime
 
@@ -26,9 +26,24 @@ class VideoEngine:
         is_pytorch_model = file_name.lower().endswith('.pt') or file_name.lower().endswith('.pth')
         
         device = 'cpu'
+        self.torch_device = 'cpu'  # explicit device string for inference calls
         if torch.cuda.is_available() and is_pytorch_model:
-            model.to('cuda:0')
-            device = 'gpu'
+            try:
+                # Verify GPU compute capability is supported by this PyTorch build
+                cc_major, cc_minor = torch.cuda.get_device_capability(0)
+                device_cc = cc_major * 10 + cc_minor  # e.g. sm_61 -> 61
+                supported = [int(a.replace("sm_", "")) for a in torch.cuda.get_arch_list()]
+                gpu_ok = device_cc >= min(supported)
+                if gpu_ok:
+                    model.to('cuda:0')
+                    device = 'gpu'
+                    self.torch_device = 'cuda:0'
+                    print(f"[INFO] Using GPU (sm_{device_cc}).")
+                else:
+                    print(f"[WARNING] GPU (sm_{device_cc}) not supported by this PyTorch build "
+                          f"(min sm_{min(supported)}). Falling back to CPU.")
+            except Exception as e:
+                print(f"[WARNING] GPU check failed ({e}). Falling back to CPU.")
             
         self.model = model
         return model, device
@@ -49,7 +64,8 @@ class VideoEngine:
             return frame, {}
 
         # Run tracking on the FULL frame once
-        results = self.model.track(frame, persist=True, conf=0.25, verbose=False)
+        torch_device = getattr(self, 'torch_device', 'cpu')
+        results = self.model.track(frame, persist=True, conf=0.25, verbose=False, device=torch_device)
         
         annotated_frame = frame.copy()
         region_counts = {}

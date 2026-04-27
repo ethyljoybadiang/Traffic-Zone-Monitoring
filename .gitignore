@@ -1,31 +1,59 @@
-# Python
+# ── Python ──────────────────────────────────────────────────────────────────
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+*.egg-info/
+.eggs/
 
-# Virtual environment
-myenv310/
+# ── Virtual environments ─────────────────────────────────────────────────────
+.test/
+.Traffic/
 venv/
 env/
+myenv310/
 Qenv310/
 LinuxEnv/
+.venv/
 
-# Build files
+# ── PyInstaller build output ─────────────────────────────────────────────────
 build/
 dist/
 *.spec
 
-# Large binaries
+# ── pyenv ────────────────────────────────────────────────────────────────────
+.python-version
+
+# ── Large binary / media files ───────────────────────────────────────────────
 *.exe
 *.dll
-*.pyd
+*.so
 *.mp4
+*.avi
+*.mkv
 
-# IDE
+# ── YOLO model weights (large — distribute separately) ───────────────────────
+# Comment these out if you DO want to commit your custom-trained models
+*.pt
+*.onnx
+*.engine
+*.xml
+*.bin
+
+# ── Logs and temp outputs ────────────────────────────────────────────────────
+Logs/
+*.log
+*.txt.bak
+
+# ── IDE ──────────────────────────────────────────────────────────────────────
 .vscode/
 .idea/
+*.swp
+*~
 
-# OS
+# ── OS ───────────────────────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
 
+# ── Specific large video files ───────────────────────────────────────────────
 Bellevue_Bellevue_NE8th__2017-09-11_11-08-31.mp4
