@@ -201,7 +201,8 @@ class VideoEngine:
         self.fps_time = time.time()
         self.fps_counter = 0
         
-        self.update_frame()
+        # Schedule update_frame on the event loop (not synchronously) to avoid freezing the UI
+        self.timer_id = self.after(2, self.update_frame)
         self.update_status("▶ Tracking active.")
     
     def stop_tracking(self):
