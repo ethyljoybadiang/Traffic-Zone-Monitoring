@@ -415,14 +415,6 @@ class VideoEngine:
                 
                 region_counts[region_idx] = current_region_counts
         
-        # Draw regions on the annotated frame
-        for idx, region in enumerate(regions):
-            color = self.region_colors[idx % len(self.region_colors)]
-            pts = np.array([[int(p[0]), int(p[1])] for p in region], np.int32)
-            cv2.polylines(annotated_frame, [pts], True, color, 2)
-            cv2.putText(annotated_frame, f"Region {idx + 1}", (int(region[0][0]), int(region[0][1]) - 10), 
-                       cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
-        
         return annotated_frame, region_counts
 
     def letterbox_frame(self, img, new_shape=(640, 640), color=(0, 0, 0)):

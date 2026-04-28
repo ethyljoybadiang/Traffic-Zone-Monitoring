@@ -22,6 +22,7 @@ class VideoCanvas(QWidget):
         ]
         self.setMouseTracking(True)
         self.setCursor(Qt.CrossCursor)
+        self.setFocusPolicy(Qt.StrongFocus)
 
     def set_frame(self, frame_data):
         """Update the current video frame."""
@@ -64,7 +65,10 @@ class VideoCanvas(QWidget):
             return
 
         # 2. Draw Confirmed Regions
-        for i, region in enumerate(self.regions):
+        for i, region_obj in enumerate(self.regions):
+            points = region_obj['points']
+            name = region_obj['name']
+            
             color = self.region_colors[i % len(self.region_colors)]
             pen = QPen(color.lighter(), 2)
             brush = QBrush(color)
@@ -74,14 +78,14 @@ class VideoCanvas(QWidget):
             polygon = QPolygon([
                 QPoint(int(p[0] * self.scale_x + self.offset_x), 
                        int(p[1] * self.scale_y + self.offset_y))
-                for p in region
+                for p in points
             ])
             painter.drawPolygon(polygon)
             
             # Label
-            if len(region) > 0:
+            if len(points) > 0:
                 painter.setPen(Qt.white)
-                painter.drawText(polygon[0] + QPoint(0, -10), f"Region {i+1}")
+                painter.drawText(polygon[0] + QPoint(0, -10), name)
 
         # 3. Draw Active Plotted Points
         if self.points:
@@ -117,3 +121,4 @@ class VideoCanvas(QWidget):
             vy = (event.y() - self.offset_y) / self.scale_y
             self.hover_point = (vx, vy)
             self.update()
+

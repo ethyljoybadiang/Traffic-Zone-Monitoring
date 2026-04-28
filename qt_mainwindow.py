@@ -6,8 +6,7 @@ import time
 from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
                              QHBoxLayout, QTabWidget, QStatusBar, QFileDialog, QMessageBox, QSlider, QLabel, QTableWidgetItem)
 from PySide6.QtCore import Qt, QTimer, QPoint
-from PySide6.QtGui import QIcon
-
+from PySide6.QtGui import QIcon, QKeySequence, QShortcut
 from video_engine import VideoEngine
 from qt_canvas import VideoCanvas
 from qt_tabs import AttributesTab, RegionSetupTab, TrackingTab, DashboardTab, ResultsTab
@@ -38,6 +37,7 @@ class MainWindow(QMainWindow):
         self.allowed_vehicle_classes = self.video_engine.allowed_vehicle_classes
         self.region_counts = {}
         self.index = []
+        self.editing_region_name = None
         
         self.setup_ui()
         
@@ -104,13 +104,47 @@ class MainWindow(QMainWindow):
         self.tab_results.export_btn.clicked.connect(self.export_log)
         self.tab_results.region_combo.currentIndexChanged.connect(self.update_results_table)
         
+        # Keyboard Shortcuts (Global)
+        self.shortcuts = [
+            QShortcut(QKeySequence(Qt.Key_Return), self, self.handle_enter_key, context=Qt.ApplicationShortcut),
+            QShortcut(QKeySequence(Qt.Key_Enter), self, self.handle_enter_key, context=Qt.ApplicationShortcut),
+            QShortcut(QKeySequence(Qt.Key_Escape), self, self.handle_esc_key, context=Qt.ApplicationShortcut),
+            QShortcut(QKeySequence("Ctrl+Z"), self, self.handle_undo_key, context=Qt.ApplicationShortcut)
+        ]
+        
         # Status Bar
         self.statusBar().showMessage("Ready. Select a model to begin.")
+
+    def handle_enter_key(self):
+        print(f"DEBUG: ENTER pressed. Points count: {len(self.points)}")
+        if self.points:
+            self.confirm_plotted_points()
+
+    def handle_esc_key(self):
+        if self.points:
+            self.points.clear()
+            self.canvas.set_points([])
+            self.update_status("Points cleared.")
+
+    def handle_undo_key(self):
+        if self.points:
+            self.points.pop()
+            self.canvas.set_points(self.points)
+            self.update_status("Last point removed.")
 
     # --- Logic Methods (To be refined) ---
     
     def update_status(self, message):
         self.statusBar().showMessage(message)
+
+    def format_time(self, frame_idx):
+        if not self.video_capture: return "00:00:00"
+        fps = self.video_capture.get(cv2.CAP_PROP_FPS)
+        if fps <= 0: fps = 30.0
+        total_seconds = frame_idx / fps
+        h, m = divmod(int(total_seconds), 3600)
+        m, s = divmod(m, 60)
+        return f"{h:02d}:{m:02d}:{s:02d}"
 
     def select_model(self):
         file_name, _ = QFileDialog.getOpenFileName(
@@ -157,61 +191,105 @@ class MainWindow(QMainWindow):
         
         self.total_frames = int(self.video_capture.get(cv2.CAP_PROP_FRAME_COUNT))
         self.slider.setMaximum(self.total_frames)
+        self.slider.setValue(0)
         self.slider.setEnabled(True)
         
         self.tab_tracking.start_btn.setEnabled(True)
         self.tab_results.export_btn.setEnabled(True)
         
+        self.video_capture.set(cv2.CAP_PROP_POS_FRAMES, 0)
         self.refresh_preview()
+        
+        self.update_frame_info(0)
         self.update_status("✓ Video loaded. Ready to set regions.")
+
+    def update_frame_info(self, curr_frame):
+        curr_time = self.format_time(curr_frame)
+        total_time = self.format_time(self.total_frames)
+        self.frame_info_label.setText(f"{curr_time} / {total_time}")
 
     def refresh_preview(self):
         if not self.video_capture: return
+        
+        # Capture current position to restore it if needed
+        curr_pos = self.video_capture.get(cv2.CAP_PROP_POS_FRAMES)
+        
         ret, frame = self.video_capture.read()
         if ret:
             frame = cv2.resize(frame, (self.width, self.height))
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             self.canvas.set_frame(frame)
-        self.video_capture.set(cv2.CAP_PROP_POS_FRAMES, 0)
+        
+        # Restore position
+        self.video_capture.set(cv2.CAP_PROP_POS_FRAMES, curr_pos)
 
     def handle_canvas_click(self, pos):
+        self.canvas.setFocus()
         self.points.append((pos.x(), pos.y()))
         self.canvas.set_points(self.points)
         self.update_status(f"Point {len(self.points)} added. ENTER to confirm.")
 
-    def keyPressEvent(self, event):
-        """Handle keyboard shortcuts"""
-        if event.key() == Qt.Key_Return or event.key() == Qt.Key_Enter:
-            # Only trigger if we are in the Region Setup tab and have points
-            if self.tabs.currentIndex() == 1 and self.points:
-                self.confirm_plotted_points()
-        elif event.key() == Qt.Key_Escape:
-            if self.points:
-                self.points.clear()
-                self.canvas.set_points([])
-                self.update_status("Points cleared.")
-        else:
-            super().keyPressEvent(event)
+
 
     def confirm_plotted_points(self):
+        print(f"DEBUG: Confirming points: {self.points}")
         if len(self.points) >= 3:
-            self.regions.append(list(self.points))
+            # Use stored name if editing, otherwise generate new
+            region_name = self.editing_region_name if self.editing_region_name else f"Region {len(self.regions) + 1}"
+            
+            self.regions.append({
+                "name": region_name,
+                "points": list(self.points)
+            })
             self.points.clear()
+            self.editing_region_name = None # Clear editing state
+            
             self.canvas.set_points([])
             self.canvas.set_regions(self.regions)
             self.update_region_list()
-            self.update_status(f"✓ Region {len(self.regions)} added.")
+            self.update_status(f"✓ {region_name} confirmed.")
         else:
             QMessageBox.warning(self, "Incomplete", "Please plot at least 3 points.")
 
     def show_region_context_menu(self, pos):
-        from PySide6.QtWidgets import QMenu
+        from PySide6.QtWidgets import QMenu, QInputDialog
         item = self.tab_region.regions_list.itemAt(pos)
         if item:
+            row = self.tab_region.regions_list.row(item)
             menu = QMenu()
+            
+            edit_action = menu.addAction("Edit Points")
+            edit_action.triggered.connect(lambda: self.edit_region_points(row))
+            
+            rename_action = menu.addAction("Rename Region")
+            rename_action.triggered.connect(lambda: self.rename_region(row))
+            
             delete_action = menu.addAction("Delete Region")
             delete_action.triggered.connect(self.delete_selected_region)
+            
             menu.exec(self.tab_region.regions_list.mapToGlobal(pos))
+
+    def edit_region_points(self, row):
+        """Move region points back to 'active plotted points' for modification"""
+        region = self.regions.pop(row)
+        self.points = list(region['points'])
+        self.editing_region_name = region['name'] # Store name to restore it
+        
+        self.canvas.set_points(self.points)
+        self.canvas.set_regions(self.regions)
+        self.update_region_list()
+        self.tabs.setCurrentIndex(1) # Switch to Region Setup tab
+        self.update_status(f"Editing {self.editing_region_name}. Add/Undo points, then press ENTER.")
+
+    def rename_region(self, row):
+        from PySide6.QtWidgets import QInputDialog
+        old_name = self.regions[row]['name']
+        new_name, ok = QInputDialog.getText(self, "Rename Region", "Enter new name:", text=old_name)
+        if ok and new_name:
+            self.regions[row]['name'] = new_name
+            self.update_region_list()
+            self.canvas.update()
+            self.update_status(f"✓ Region renamed to {new_name}")
 
     def delete_selected_region(self):
         row = self.tab_region.regions_list.currentRow()
@@ -226,9 +304,12 @@ class MainWindow(QMainWindow):
         self.tab_region.regions_list.clear()
         self.tab_results.region_combo.clear()
         self.tab_results.region_combo.addItem("All Regions")
-        for i in range(len(self.regions)):
-            self.tab_region.regions_list.addItem(f"Region {i+1}")
-            self.tab_results.region_combo.addItem(f"Region {i+1}")
+        for i, region in enumerate(self.regions):
+            self.tab_region.regions_list.addItem(region['name'])
+            self.tab_results.region_combo.addItem(region['name'])
+        
+        # Also refresh results table headers
+        self.update_results_table()
 
     def undo_last_region(self):
         if self.regions:
@@ -264,7 +345,6 @@ class MainWindow(QMainWindow):
         self.tab_tracking.start_btn.setText("▶ Start Tracking")
         self.tab_tracking.status_label.setText("⚪ Stopped")
         if self.video_capture:
-            self.video_capture.set(cv2.CAP_PROP_POS_FRAMES, 0)
             self.refresh_preview()
 
     def update_frame(self):
@@ -275,8 +355,9 @@ class MainWindow(QMainWindow):
             frame = cv2.resize(frame, (self.width, self.height))
             
             # Tracking logic
+            region_points = [r['points'] for r in self.regions]
             annotated_frame, self.region_counts = self.video_engine.process_frame_tracking(
-                frame, self.regions, self.model.names
+                frame, region_points, self.model.names
             )
             
             # Dashboard Updates
@@ -305,8 +386,10 @@ class MainWindow(QMainWindow):
             
             # Slider
             curr_frame = int(self.video_capture.get(cv2.CAP_PROP_POS_FRAMES))
+            self.slider.blockSignals(True) # Don't trigger seek during playback
             self.slider.setValue(curr_frame)
-            self.frame_info_label.setText(f"Frame: {curr_frame} / {self.total_frames}")
+            self.slider.blockSignals(False)
+            self.update_frame_info(curr_frame)
         else:
             self.stop_tracking()
 
@@ -314,18 +397,17 @@ class MainWindow(QMainWindow):
         """Update pivot table: Vehicles vs Regions"""
         if not self.index: return
         
+        # Update Columns
+        headers = ["Vehicle"]
         current_filter = self.tab_results.region_combo.currentText()
         if current_filter == "All Regions":
+            headers += [r['name'] for r in self.regions]
             active_indices = list(range(len(self.regions)))
         else:
-            try:
-                idx = int(current_filter.split()[-1]) - 1
-                active_indices = [idx]
-            except:
-                active_indices = list(range(len(self.regions)))
+            # Find index of the selected region by name
+            headers.append(current_filter)
+            active_indices = [i for i, r in enumerate(self.regions) if r['name'] == current_filter]
                 
-        # Update Columns
-        headers = ["Vehicle"] + [f"Region {i+1}" for i in active_indices]
         self.tab_results.table.setColumnCount(len(headers))
         self.tab_results.table.setHorizontalHeaderLabels(headers)
         
@@ -346,6 +428,7 @@ class MainWindow(QMainWindow):
         if not self.tracking and self.video_capture:
             self.video_capture.set(cv2.CAP_PROP_POS_FRAMES, value)
             self.refresh_preview()
+            self.update_frame_info(value)
 
     def export_log(self):
         """Export tracking log as PDF using export_utils"""
