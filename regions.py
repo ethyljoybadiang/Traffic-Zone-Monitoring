@@ -36,10 +36,6 @@ class RegionsMixin:
                     points = [(int(p[0] * pil_image.width / self.width), int(p[1] * pil_image.height / self.height)) 
                                 for p in region] if self.width and self.height else region
                     draw.polygon(points, fill=(*color, 50), outline=color)
-                    # Draw region name label on canvas
-                    region_names = getattr(self, 'region_names', {})
-                    label = region_names.get(region_idx, f"Region {region_idx + 1}")
-                    draw.text((points[0][0], max(0, points[0][1] - 14)), label, fill=color)
         
         # Draw plotted points
         if self.points:
@@ -208,7 +204,6 @@ class RegionsMixin:
             # Add region to list
             self.regions.append(region)
             self.update_regions_listbox()
-            self.update_region_filter_combobox()
             
             self.update_status("✓ Region added successfully!")
             messagebox.showinfo("Success", f"Region {len(self.regions)} added.")
@@ -268,8 +263,6 @@ class RegionsMixin:
     def remove_last_region(self):
         """Remove the last added region"""
         if self.regions:
-            last_idx = len(self.regions) - 1
-            self.region_names.pop(last_idx, None)
             self.regions.pop()
             self.update_regions_listbox()
             self.update_region_filter_combobox()
@@ -284,7 +277,6 @@ class RegionsMixin:
         if self.regions:
             if messagebox.askyesno("Confirm", f"Clear all {len(self.regions)} region(s)?"):
                 self.regions.clear()
-                self.region_names.clear()
                 self.update_regions_listbox()
                 self.update_region_filter_combobox()
                 self.points.clear()
@@ -344,14 +336,6 @@ class RegionsMixin:
             
         index = selection[0]
         self.regions.pop(index)
-        # Rebuild region_names to keep indices contiguous after deletion
-        new_names = {}
-        for old_idx, name in self.region_names.items():
-            if old_idx < index:
-                new_names[old_idx] = name
-            elif old_idx > index:
-                new_names[old_idx - 1] = name
-        self.region_names = new_names
         self.update_regions_listbox()
         self.update_region_filter_combobox()
         self.update_status(f"✓ Region removed. {len(self.regions)} region(s) remaining.")
@@ -359,60 +343,18 @@ class RegionsMixin:
             self.refresh_video_display()
         pass
 
-    def rename_region(self):
-        """Prompt user to rename the selected region"""
-        selection = self.regions_listbox.curselection()
-        if not selection:
-            return
-        index = selection[0]
-        current_name = self.region_names.get(index, f"Region {index + 1}")
-
-        dialog = tk.Toplevel(self)
-        dialog.title("Rename Region")
-        dialog.resizable(False, False)
-        dialog.grab_set()
-
-        tk.Label(dialog, text="Enter new name:", padx=10, pady=5).pack()
-        name_var = tk.StringVar(value=current_name)
-        entry = tk.Entry(dialog, textvariable=name_var, width=30)
-        entry.pack(padx=10, pady=5)
-        entry.select_range(0, tk.END)
-        entry.focus_set()
-
-        def confirm():
-            new_name = name_var.get().strip()
-            if new_name:
-                self.region_names[index] = new_name
-                self.update_regions_listbox()
-                self.update_region_filter_combobox()
-                if self.video_capture:
-                    self.refresh_video_display()
-                self.update_status(f"✓ Region renamed to '{new_name}'.")
-            dialog.destroy()
-
-        btn_frame = tk.Frame(dialog)
-        btn_frame.pack(pady=5)
-        tk.Button(btn_frame, text="OK", command=confirm, width=8).pack(side=tk.LEFT, padx=5)
-        tk.Button(btn_frame, text="Cancel", command=dialog.destroy, width=8).pack(side=tk.LEFT, padx=5)
-        dialog.bind("<Return>", lambda e: confirm())
-        dialog.bind("<Escape>", lambda e: dialog.destroy())
-        pass
-
     def update_regions_listbox(self):
         """Update the regions listbox display"""
         self.regions_listbox.delete(0, tk.END)
-        for i, region in enumerate(self.regions):
-            name = self.region_names.get(i, f"Region {i + 1}")
-            self.regions_listbox.insert(tk.END, f"{name}: {region}")
+        for i, region in enumerate(self.regions, 1):
+            self.regions_listbox.insert(tk.END, f"Region {i}: {region}")
         pass
 
     def update_region_filter_combobox(self):
         """Update region filter combobox options"""
         if not hasattr(self, 'region_combo'):
             return  # Combobox not yet created
-        region_options = ["All Regions"] + [
-            self.region_names.get(i, f"Region {i + 1}") for i in range(len(self.regions))
-        ]
+        region_options = ["All Regions"] + [f"Region {i + 1}" for i in range(len(self.regions))]
         self.region_combo['values'] = region_options
         self.region_combo.current(0)  # Reset to "All Regions"
         pass

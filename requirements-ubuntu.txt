@@ -1,0 +1,37 @@
+# Requirements for Ubuntu ARM64 (Jetson AGX / Raspberry Pi)
+# =========================================================
+#
+# PREREQUISITES (install these BEFORE pip install):
+#   sudo apt update
+#   sudo apt install -y python3-tk python3-pil python3-pil.imagetk
+#
+# For Jetson AGX (install PyTorch from NVIDIA, not pip):
+#   See: https://forums.developer.nvidia.com/t/pytorch-for-jetson/
+#   pip install <nvidia-torch-wheel-for-your-jetpack>.whl
+#   pip install <nvidia-torchvision-wheel>.whl
+#
+# For Raspberry Pi + Hailo:
+#   Install hailort from the Hailo Developer Zone .deb / .whl
+#
+# IMPORTANT: NumPy 2.x causes segfaults on Jetson/ARM64.
+#   pip install "numpy<2.0"
+#
+# Then install the rest:
+#   pip install -r requirements-ubuntu.txt
+
+numpy<2.0
+matplotlib
+opencv-python-headless
+pillow
+ultralytics
+PyYAML
+scipy
+shapely
+requests
+psutil
+schedule
+reportlab
+simplejson
+six
+typing_extensions
+lap

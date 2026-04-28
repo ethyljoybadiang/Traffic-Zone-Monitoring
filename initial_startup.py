@@ -22,7 +22,6 @@ def initial_ui(self):
     # Initialize variables
     self.points = []
     self.regions = []  # List of confirmed regions
-    self.region_names = {}  # {region_idx: custom_name}
     self.dragging_point = None
     self.endpoint_radius = 10
     self.hover_point = None
@@ -188,7 +187,7 @@ def initialize_table(self):
         """Select and load AI model"""
         file_name = filedialog.askopenfilename(
             title="Select Model",
-            filetypes=[("All Supported Models", "*.pt *.pth *.xml *.onnx *.engine *.hef"), ("PyTorch Models", "*.pt *.pth"), ("OpenVINO Models", "*.xml"), ("ONNX Models", "*.onnx"), ("TensorRT Engine", "*.engine"), ("Hailo HEF", "*.hef"), ("All Files", "*.*")]
+            filetypes=[("All Supported Models", "*.pt *.pth *.xml"), ("PyTorch Models", "*.pt *.pth"), ("OpenVINO Models", "*.xml"), ("All Files", "*.*")]
         )
         
         if not file_name:

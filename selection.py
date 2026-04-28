@@ -11,13 +11,13 @@ class SelectionMixin:
         file_name = filedialog.askopenfilename(
             title="Select Model",
             filetypes=[
-                ("All Files", "*.*"),
                 ("All Supported Models", "*.pt *.pth *.xml *.onnx *.engine *.hef"),
                 ("PyTorch Models", "*.pt *.pth"),
                 ("OpenVINO Models", "*.xml"),
                 ("ONNX Models", "*.onnx"),
-                ("TensorRT Engine", "*.engine"),
-                ("Hailo HEF", "*.hef"),
+                ("TensorRT Models", "*.engine"),
+                ("Hailo Models", "*.hef"),
+                ("All Files", "*.*"),
             ],
         )
 
@@ -25,9 +25,33 @@ class SelectionMixin:
             self.update_status("Model selection cancelled.")
             return
 
+        # For .hef models, optionally prompt for labels.json
+        labels_path = None
+        if file_name.lower().endswith('.hef'):
+            # Check if labels.json exists next to the .hef file (auto-detect)
+            model_dir = os.path.dirname(os.path.abspath(file_name))
+            auto_labels = os.path.join(model_dir, 'labels.json')
+            
+            if not os.path.isfile(auto_labels):
+                # No auto-detected labels.json, ask user if they want to import one
+                want_labels = messagebox.askyesno(
+                    "Import Labels",
+                    "No labels.json found next to the model.\n\n"
+                    "Would you like to import a labels.json file?\n"
+                    "(Maps class indices to names like 'car', 'truck', etc.)\n\n"
+                    "Click 'No' to use default COCO class names."
+                )
+                if want_labels:
+                    labels_path = filedialog.askopenfilename(
+                        title="Select labels.json",
+                        filetypes=[("JSON Files", "*.json"), ("All Files", "*.*")]
+                    )
+                    if not labels_path:
+                        labels_path = None  # User cancelled file dialog
+
         self.update_status("Loading AI model... Please wait.")
         try:
-            self.model, device_type = self.video_engine.load_model(file_name)
+            self.model, device_type = self.video_engine.load_model(file_name, labels_path=labels_path)
 
             if device_type == "gpu":
                 self.update_status("✓ Model loaded on GPU.")

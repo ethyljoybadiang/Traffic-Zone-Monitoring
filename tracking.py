@@ -65,7 +65,7 @@ class TrackingMixin:
 
             # If tracking context exists, show the annotated frame; otherwise show raw preview.
             if getattr(self, "tracking", False) and getattr(self, "model", None) and getattr(self, "regions", None):
-                annotated_frame, _ = self.video_engine.process_frame_tracking(frame, self.regions, self.model.names, getattr(self, 'region_names', {}))
+                annotated_frame, _ = self.video_engine.process_frame_tracking(frame, self.regions, self.model.names)
                 rgb_image = cv2.cvtColor(annotated_frame, cv2.COLOR_BGR2RGB)
             else:
                 rgb_image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -116,7 +116,7 @@ class TrackingMixin:
                 
                 # Delegate tracking logic to VideoEngine
                 annotated_frame, self.region_counts = self.video_engine.process_frame_tracking(
-                    frame, self.regions, self.model.names, getattr(self, 'region_names', {})
+                    frame, self.regions, self.model.names
                 )
                 
                 # Update timestamp

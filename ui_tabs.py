@@ -13,7 +13,7 @@ def setup_attributes_tab(app, parent):
     
     model_btn = ttk.Button(
         frame, 
-        text="Select Model (All Formats)", 
+        text="Select Model (.pt / .xml)", 
         command=app.select_model
     )
     model_btn.pack(fill=tk.X, pady=5)
@@ -106,7 +106,6 @@ def setup_region_tab(app, parent):
     
     # Context menu for regions
     app.region_menu = tk.Menu(app, tearoff=0)
-    app.region_menu.add_command(label="Rename Region", command=app.rename_region)
     app.region_menu.add_command(label="Edit Region", command=app.edit_selected_region)
     app.region_menu.add_command(label="Delete Region", command=app.delete_selected_region)
     app.regions_listbox.bind("<ButtonRelease-3>", app.show_region_context_menu)
@@ -173,10 +172,14 @@ def setup_results_tab(app, parent):
     frame = ttk.LabelFrame(parent, text="Vehicle Count Results (By Region)", padding=10)
     frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
     
-    columns = ("Vehicle",)
+    columns = ("Region", "Vehicle", "In", "Out", "Inside")
     app.table = ttk.Treeview(frame, columns=columns, height=15, show="headings", selectmode="browse")
-    app.table.heading("Vehicle", text="Vehicle Class")
-    app.table.column("Vehicle", width=120)
+    
+    # Define columns
+    col_widths = {"Region": 60, "Vehicle": 80, "In": 50, "Out": 50, "Inside": 50}
+    for col, width in col_widths.items():
+        app.table.column(col, width=width)
+        app.table.heading(col, text=col)
     
     # Scrollbars
     v_scrollbar = ttk.Scrollbar(frame, orient=tk.VERTICAL, command=app.table.yview)
