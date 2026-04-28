@@ -3,11 +3,14 @@ import json
 import numpy as np
 import os
 import torch
-import tkinter as tk
+import cv2
+import json
+import numpy as np
+import os
+import torch
 import time
 
 from ultralytics import YOLO
-from tkinter import ttk, filedialog, messagebox
 from datetime import datetime
 
 class DummyBoxes:
