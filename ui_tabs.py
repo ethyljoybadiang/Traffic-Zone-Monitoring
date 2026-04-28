@@ -172,14 +172,12 @@ def setup_results_tab(app, parent):
     frame = ttk.LabelFrame(parent, text="Vehicle Count Results (By Region)", padding=10)
     frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
     
-    columns = ("Region", "Vehicle", "In", "Out", "Inside")
+    columns = ("Vehicle",)
     app.table = ttk.Treeview(frame, columns=columns, height=15, show="headings", selectmode="browse")
     
-    # Define columns
-    col_widths = {"Region": 60, "Vehicle": 80, "In": 50, "Out": 50, "Inside": 50}
-    for col, width in col_widths.items():
-        app.table.column(col, width=width)
-        app.table.heading(col, text=col)
+    # Define initial column
+    app.table.column("Vehicle", width=120, anchor=tk.CENTER)
+    app.table.heading("Vehicle", text="Vehicle")
     
     # Scrollbars
     v_scrollbar = ttk.Scrollbar(frame, orient=tk.VERTICAL, command=app.table.yview)
