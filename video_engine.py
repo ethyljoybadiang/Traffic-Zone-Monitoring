@@ -56,7 +56,7 @@ class VideoEngine:
         cy = sum(p[1] for p in pts) / len(pts)
         return sorted(pts, key=lambda p: math.atan2(p[1] - cy, p[0] - cx))
 
-    def process_frame_tracking(self, frame, regions, model_names):
+    def process_frame_tracking(self, frame, regions, model_names, region_names=None):
         """
         Run tracking on a frame and return annotated frame and region counts
         """
@@ -100,18 +100,26 @@ class VideoEngine:
                         # Draw it (once per box, using the color of the first region it falls in)
                         if i not in drawn_indices:
                             x1, y1, x2, y2 = map(int, box)
-                            cv2.rectangle(annotated_frame, (x1, y1), (x2, y2), color, 2)
+                            cv2.rectangle(annotated_frame, (x1, y1), (x2, y2), color, 1, cv2.LINE_AA)
+                            
+                            # Draw the class label and track ID above the bounding box
+                            label = f"{class_name} ID:{track_id}"
+                            cv2.putText(annotated_frame, label, (x1, max(10, y1 - 5)), 
+                                        cv2.FONT_HERSHEY_PLAIN, 0.5, color, 1, cv2.LINE_AA)
+                            
                             drawn_indices.add(i)
                 
                 region_counts[region_idx] = current_region_counts
         
         # Draw regions on the annotated frame
+        region_names = region_names or {}
         for idx, region in enumerate(regions):
             color = self.region_colors[idx % len(self.region_colors)]
             pts = np.array([[int(p[0]), int(p[1])] for p in region], np.int32)
-            cv2.polylines(annotated_frame, [pts], True, color, 2)
-            cv2.putText(annotated_frame, f"Region {idx + 1}", (int(region[0][0]), int(region[0][1]) - 10), 
-                       cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
+            cv2.polylines(annotated_frame, [pts], True, color, 1, cv2.LINE_AA)
+            label = region_names.get(idx, f"Region {idx + 1}")
+            cv2.putText(annotated_frame, label, (int(region[0][0]), int(region[0][1]) - 10), 
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 1, cv2.LINE_AA)
         
         return annotated_frame, region_counts
 

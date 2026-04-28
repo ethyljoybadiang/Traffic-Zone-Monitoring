@@ -11,10 +11,13 @@ class SelectionMixin:
         file_name = filedialog.askopenfilename(
             title="Select Model",
             filetypes=[
-                ("All Supported Models", "*.pt *.pth *.xml"),
+                ("All Files", "*.*"),
+                ("All Supported Models", "*.pt *.pth *.xml *.onnx *.engine *.hef"),
                 ("PyTorch Models", "*.pt *.pth"),
                 ("OpenVINO Models", "*.xml"),
-                ("All Files", "*.*"),
+                ("ONNX Models", "*.onnx"),
+                ("TensorRT Engine", "*.engine"),
+                ("Hailo HEF", "*.hef"),
             ],
         )
 

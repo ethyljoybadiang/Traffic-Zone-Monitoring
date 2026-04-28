@@ -22,6 +22,7 @@ def initial_ui(self):
     # Initialize variables
     self.points = []
     self.regions = []  # List of confirmed regions
+    self.region_names = {}  # {region_idx: custom_name}
     self.dragging_point = None
     self.endpoint_radius = 10
     self.hover_point = None

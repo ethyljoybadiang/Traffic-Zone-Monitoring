@@ -61,6 +61,7 @@ class MainWindow(tk.Tk,RegionsMixin,VideoEngine,SelectionMixin,TrackingMixin,Exp
         self.model = None
         self.video_capture = None
         self.regions = []
+        self.region_names = {}  # {region_idx: custom_name}
         self.points = []
         self.tracking = False
         self.timer_id = None
@@ -70,6 +71,20 @@ class MainWindow(tk.Tk,RegionsMixin,VideoEngine,SelectionMixin,TrackingMixin,Exp
         self.canvas_height = None
         self.allowed_vehicle_classes = ['car', 'truck', 'bus', 'motorcycle', 'bicycle']
         self.region_colors = [(255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 255, 0), (255, 0, 255), (0, 255, 255)]
+        self.region_counts = {}
+        self.vehicle_count = {}
+        self.file_name = None
+        self.video_name = None
+        self.index = None
+        self.vehicles = None
+        self.hover_point = None
+        self.is_hovering_video = False
+        self.frame_count = 0
+        self.fps_counter = 0
+        self.fps_time = time.time()
+        self.photo = None
+        self.is_manual_seek = False
+        self.region_filter = tk.StringVar(value="All Regions")
         
         # Setup UI components from startup module
         startup.setup_ui(self)
