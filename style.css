@@ -1,0 +1,124 @@
+/* Color Variables */
+$blue-accent: #4fc0d2;
+$green-accent: #52d29a;
+$red-accent: #eb7655;
+$dark-bg: rgba(15, 15, 15, 0.95);
+$row-bg: rgba(255, 255, 255, 0.05);
+$text-main: rgba(255, 255, 255, 0.9);
+
+body {
+  background: $dark-bg;
+  font-family: 'Open Sans', sans-serif;
+  margin: 0;
+  overflow: hidden; /* Prevents body scroll */
+}
+
+.wrapper {
+  width: 100%;
+  height: 100vh; /* Dynamic to side panel height */
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  color: $text-main;
+  overflow-x: hidden; /* No horizontal scroll */
+  overflow-y: hidden; /* No vertical scroll as requested */
+  position: relative;
+}
+
+/* Scalable Table Logic */
+.row ul {
+  margin: 0;
+  padding: 0;
+  display: flex; /* Flexbox for better scaling */
+  width: 100%;
+}
+
+.row ul li {
+  list-style: none;
+  font-size: 14px;
+  padding: 10px 15px;
+  box-sizing: border-box;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis; /* Keeps names from breaking layout */
+}
+
+/* Specific Column Widths */
+.row ul li:nth-child(1) { width: 40%; flex-grow: 1; white-space: normal; } /* Region: Allows wrapping */
+.row ul li:nth-child(2) { width: 35%; } /* Object Type */
+.row ul li:nth-child(3) { width: 25%; text-align: right; } /* Live Count */
+
+/* Row Transitions */
+.row {
+  padding: 10px 0;
+  height: 45px;
+  transition: all 0.25s ease-in-out;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  position: relative;
+  background: $row-bg;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.12);
+    height: 110px; /* Expanded for summary */
+  }
+}
+
+/* Header Styling */
+.title {
+  height: 50px;
+  font-weight: bold;
+  background: rgba(255, 255, 255, 0.1);
+  border-left: 4px solid $blue-accent;
+  
+  &:hover { height: 50px; } /* Title doesn't expand */
+}
+
+/* Indicators */
+.vehicle-high { border-left: 4px solid $red-accent; }
+.vehicle-low { border-left: 4px solid $green-accent; }
+
+/* Cumulative Summary Content */
+ul.more-content {
+  display: block;
+  padding: 10px 15px;
+  opacity: 0;
+  transition: opacity 0.2s;
+  
+  li {
+    width: 100% !important;
+    font-size: 12px;
+    color: rgba($text-main, 0.7);
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+  }
+}
+
+.row:hover ul.more-content {
+  opacity: 1;
+}
+
+.export-link {
+  color: $blue-accent;
+  text-decoration: none;
+  border: 1px solid $blue-accent;
+  padding: 4px 8px;
+  border-radius: 3px;
+  font-size: 11px;
+  
+  &:hover {
+    background: $blue-accent;
+    color: #000;
+  }
+}
+
+/* Update Animation */
+.update1 {
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0% { color: $text-main; }
+  50% { color: $green-accent; transform: scale(1.1); }
+  100% { color: $text-main; }
+}

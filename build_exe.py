@@ -60,7 +60,7 @@ def create_executable(main_file, app_name):
 
 if __name__ == "__main__":
     # Default values for this project
-    default_main = "mainwindow.py"
+    default_main = "qt_mainwindow.py"
     default_name = "ALAM_Tkinter"
     
     main_file = sys.argv[1] if len(sys.argv) > 1 else default_main

@@ -9,7 +9,7 @@ from PySide6.QtCore import Qt, QTimer, QPoint
 from PySide6.QtGui import QIcon, QKeySequence, QShortcut
 from video_engine import VideoEngine
 from qt_canvas import VideoCanvas
-from qt_tabs import AttributesTab, RegionSetupTab, TrackingTab, DashboardTab, ResultsTab
+from qt_tabs import SetupTab, TrackingTab, DashboardTab, ResultsTab, RegionTile
 from export_utils import export_log_to_pdf
 from app_context import APPLICATION_PATH
 
@@ -38,6 +38,7 @@ class MainWindow(QMainWindow):
         self.region_counts = {}
         self.index = []
         self.editing_region_name = None
+        self.region_tiles = {} # {RegionName: RegionTileWidget}
         
         self.setup_ui()
         
@@ -71,14 +72,12 @@ class MainWindow(QMainWindow):
         
         # Right Side: Tabs
         self.tabs = QTabWidget()
-        self.tab_attributes = AttributesTab()
-        self.tab_region = RegionSetupTab()
+        self.tab_setup = SetupTab()
         self.tab_tracking = TrackingTab()
         self.tab_dashboard = DashboardTab()
         self.tab_results = ResultsTab()
         
-        self.tabs.addTab(self.tab_attributes, "Attributes")
-        self.tabs.addTab(self.tab_region, "Region Setup")
+        self.tabs.addTab(self.tab_setup, "Setup")
         self.tabs.addTab(self.tab_tracking, "Tracking")
         self.tabs.addTab(self.tab_dashboard, "Dashboard")
         self.tabs.addTab(self.tab_results, "Results")
@@ -86,17 +85,16 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(self.tabs, stretch=1)
         
         # Connect Signals
-        self.tab_attributes.select_model_btn.clicked.connect(self.select_model)
-        self.tab_attributes.select_video_btn.clicked.connect(self.select_video)
-        self.tab_attributes.reset_btn.clicked.connect(self.reset_session)
+        self.tab_setup.select_model_btn.clicked.connect(self.select_model)
+        self.tab_setup.select_video_btn.clicked.connect(self.select_video)
+        self.tab_setup.reset_btn.clicked.connect(self.reset_session)
         
-        self.tab_region.add_btn.clicked.connect(self.confirm_plotted_points)
-        self.tab_region.undo_btn.clicked.connect(self.undo_last_region)
-        self.tab_region.clear_btn.clicked.connect(self.clear_all_regions)
+        self.tab_setup.undo_btn.clicked.connect(self.undo_last_region)
+        self.tab_setup.clear_btn.clicked.connect(self.clear_all_regions)
         
         # Region List Context Menu
-        self.tab_region.regions_list.setContextMenuPolicy(Qt.CustomContextMenu)
-        self.tab_region.regions_list.customContextMenuRequested.connect(self.show_region_context_menu)
+        self.tab_setup.regions_list.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.tab_setup.regions_list.customContextMenuRequested.connect(self.show_region_context_menu)
         
         self.tab_tracking.start_btn.clicked.connect(self.start_tracking)
         self.tab_tracking.stop_btn.clicked.connect(self.stop_tracking)
@@ -159,8 +157,8 @@ class MainWindow(QMainWindow):
             self.index = list(self.model.names.values())
             
             model_name = os.path.basename(file_name)
-            self.tab_attributes.model_name_label.setText(model_name)
-            self.tab_attributes.select_video_btn.setEnabled(True)
+            self.tab_setup.model_name_label.setText(model_name)
+            self.tab_setup.select_video_btn.setEnabled(True)
             self.update_status(f"✓ Model loaded on {device_type.upper()}.")
             
             self.update_results_table()
@@ -186,8 +184,8 @@ class MainWindow(QMainWindow):
         scale = 640.0 / max(orig_w, orig_h)
         self.width, self.height = int(orig_w * scale), int(orig_h * scale)
         
-        self.tab_attributes.video_name_label.setText(os.path.basename(file_name))
-        self.tab_attributes.video_size_label.setText(f"{self.width} x {self.height}")
+        self.tab_setup.video_name_label.setText(os.path.basename(file_name))
+        self.tab_setup.video_size_label.setText(f"{self.width} x {self.height}")
         
         self.total_frames = int(self.video_capture.get(cv2.CAP_PROP_FRAME_COUNT))
         self.slider.setMaximum(self.total_frames)
@@ -229,8 +227,6 @@ class MainWindow(QMainWindow):
         self.canvas.set_points(self.points)
         self.update_status(f"Point {len(self.points)} added. ENTER to confirm.")
 
-
-
     def confirm_plotted_points(self):
         print(f"DEBUG: Confirming points: {self.points}")
         if len(self.points) >= 3:
@@ -253,9 +249,9 @@ class MainWindow(QMainWindow):
 
     def show_region_context_menu(self, pos):
         from PySide6.QtWidgets import QMenu, QInputDialog
-        item = self.tab_region.regions_list.itemAt(pos)
+        item = self.tab_setup.regions_list.itemAt(pos)
         if item:
-            row = self.tab_region.regions_list.row(item)
+            row = self.tab_setup.regions_list.row(item)
             menu = QMenu()
             
             edit_action = menu.addAction("Edit Points")
@@ -267,7 +263,7 @@ class MainWindow(QMainWindow):
             delete_action = menu.addAction("Delete Region")
             delete_action.triggered.connect(self.delete_selected_region)
             
-            menu.exec(self.tab_region.regions_list.mapToGlobal(pos))
+            menu.exec(self.tab_setup.regions_list.mapToGlobal(pos))
 
     def edit_region_points(self, row):
         """Move region points back to 'active plotted points' for modification"""
@@ -278,7 +274,7 @@ class MainWindow(QMainWindow):
         self.canvas.set_points(self.points)
         self.canvas.set_regions(self.regions)
         self.update_region_list()
-        self.tabs.setCurrentIndex(1) # Switch to Region Setup tab
+        self.tabs.setCurrentIndex(0) # Switch to Setup tab
         self.update_status(f"Editing {self.editing_region_name}. Add/Undo points, then press ENTER.")
 
     def rename_region(self, row):
@@ -292,7 +288,7 @@ class MainWindow(QMainWindow):
             self.update_status(f"✓ Region renamed to {new_name}")
 
     def delete_selected_region(self):
-        row = self.tab_region.regions_list.currentRow()
+        row = self.tab_setup.regions_list.currentRow()
         if row >= 0:
             if QMessageBox.question(self, "Confirm", f"Delete Region {row+1}?") == QMessageBox.Yes:
                 self.regions.pop(row)
@@ -301,12 +297,25 @@ class MainWindow(QMainWindow):
                 self.update_status(f"✓ Region {row+1} removed.")
 
     def update_region_list(self):
-        self.tab_region.regions_list.clear()
+        self.tab_setup.regions_list.clear()
         self.tab_results.region_combo.clear()
         self.tab_results.region_combo.addItem("All Regions")
+        
+        # Clear existing tiles in dashboard
+        for tile in self.region_tiles.values():
+            self.tab_dashboard.tiles_layout.removeWidget(tile)
+            tile.deleteLater()
+        self.region_tiles = {}
+
         for i, region in enumerate(self.regions):
-            self.tab_region.regions_list.addItem(region['name'])
-            self.tab_results.region_combo.addItem(region['name'])
+            name = region['name']
+            self.tab_setup.regions_list.addItem(name)
+            self.tab_results.region_combo.addItem(name)
+            
+            # Create Tile for Dashboard
+            tile = RegionTile(name)
+            self.tab_dashboard.tiles_layout.addWidget(tile)
+            self.region_tiles[name] = tile
         
         # Also refresh results table headers
         self.update_results_table()
@@ -369,8 +378,24 @@ class MainWindow(QMainWindow):
                 self.fps_counter = 0
                 self.fps_time = curr_time
             
-            total_inside = sum(sum(c.values()) for c in self.region_counts.values())
-            self.tab_dashboard.total_count_label.setText(str(total_inside))
+            # Calculate Global Distribution & Update Tiles
+            global_distribution = {}
+            for i, region in enumerate(self.regions):
+                name = region['name']
+                counts = self.region_counts.get(i, {})
+                
+                # Update Tile
+                if name in self.region_tiles:
+                    total_in_region = sum(counts.values())
+                    self.region_tiles[name].update_stats(total_in_region, counts)
+                
+                # Add to Global
+                for vehicle, count in counts.items():
+                    global_distribution[vehicle] = global_distribution.get(vehicle, 0) + count
+            
+            # Update Donut Chart & Legend
+            self.tab_dashboard.chart.set_data(global_distribution)
+            self.tab_dashboard.update_legend(global_distribution)
             
             timestamp_ms = self.video_capture.get(cv2.CAP_PROP_POS_MSEC)
             total_seconds = timestamp_ms / 1000.0
@@ -472,8 +497,8 @@ class MainWindow(QMainWindow):
         self.canvas.set_frame(None)
         self.canvas.set_regions([])
         self.update_region_list()
-        self.tab_attributes.model_name_label.setText("No model selected")
-        self.tab_attributes.video_name_label.setText("No video selected")
+        self.tab_setup.model_name_label.setText("No model selected")
+        self.tab_setup.video_name_label.setText("No video selected")
         self.update_status("Session reset.")
 
 if __name__ == "__main__":
